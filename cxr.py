@@ -1,40 +1,52 @@
-debug=True
+debug=False
 
-class camper:
-   	def __init__(self,age,gender,grade,firstName,lastName):
-          self.age=age
-          self.gender=gender
-          self.grade=grade
-          self.firstName=firstName
-          self.lastName=lastName
-   	def toString(self):
-          return "age:"+self.age+" gender:"+self.gender+" grade:"+str(self.grade)+" name:"+self.firstName+" "+self.lastName
-    #def printString(self):
-    #    print(self.toString())
+MAX_MOVES=1 #maximum distance a camper can be moved outside their grade
+BALANCED_DEF=1 #definition of a "balanced" cabin roster (within 1)
 
+class Camper:
+   def __init__(self,grade,age,gender,firstName,lastName):
+      self.age=age
+      self.gender=gender
+      self.grade=grade
+      self.firstName=firstName
+      self.lastName=lastName
+      self.movedTimes=0
+   def toString(self):
+      return "grade:"+str(self.grade)\
+             +" age:"+self.age\
+             +" gender:"+self.gender\
+             +" name:"+self.firstName+","+self.lastName
 
 def getGrade(grade):
    grade=grade.split()[0]
+   #TODO
+   #if grade=="Counselor":
+   #   return int(-1)
    if not grade.endswith("th"):
       grade=13
    else:
       grade=grade.split("th")[0]
    return int(grade)
 
-def getAgeInGrade(campers,isMin):
+def getCamper(campers,isMin):
+   #Always get youngest/oldest in grade according to isMin
+   #if that camper has hit MAX_MOVES, should take the next youngest/oldest
    dictByAge={}
    for camper in campers:
-      dictByAge[camper.age]=[]
-      dictByAge[camper.age].append(camper)
-      if isMin:
-         youngest=dictByAge[min(dictByAge)]
-         assert(len(youngest)==1)
-         return youngest[0]
-      else:
-         oldest=dictByAge[max(dictByAge)]
-         assert(len(oldest)==1)
-         return oldest[0]
+      if not camper.movedTimes > MAX_MOVES:
+      #only consider campers who have not hit MAX_MOVES
+         dictByAge[camper.age]=[]
+         dictByAge[camper.age].append(camper)
 
+   if isMin:
+      youngest=dictByAge[min(dictByAge)]
+      assert(len(youngest)==1)
+      return youngest[0]
+   else:
+      oldest=dictByAge[max(dictByAge)]
+      assert(len(oldest)==1)
+      return oldest[0]
+   
 def getCountDict(myDict):
    dictByCount={}
    for grade in myDict:
@@ -46,14 +58,13 @@ def getCountDict(myDict):
 
 def isBalanced(myDict):
    dictByCount=getCountDict(myDict)
-   #check if all grades balanced within 1
    hi=max(dictByCount, key=dictByCount.get)
    lo=min(dictByCount, key=dictByCount.get)
    #if debug: print("max:",hi,dictByCount[hi],"min:",lo,dictByCount[lo])
-   if dictByCount[hi]-dictByCount[lo]>1:
+   if dictByCount[hi]-dictByCount[lo]>BALANCED_DEF:
       return False
    else:
-      if debug: print("balanced within 1")
+      if debug: print("balanced within",BALANCED_DEF)
       return True
 
 def getAdjacentGradesCount(myDict,g):
@@ -83,12 +94,14 @@ def rebalance(myDict,grade,isDownward):
    return myDict
 
 def moveCamper(myDict,grade,isDownward):
-   y=getAgeInGrade(myDict[grade],isDownward)
-   myDict[grade].remove(y)
-   if isDownward:
-      myDict[grade-1].append(y)
-   else:
-      myDict[grade+1].append(y)
+   y=getCamper(myDict[grade],isDownward)
+   if y!=None:
+      y.movedTimes=y.movedTimes+1
+      if isDownward:
+         myDict[grade-1].append(y)
+      else:
+         myDict[grade+1].append(y)
+      myDict[grade].remove(y)
    return myDict
 
 def loadData(myfile):
@@ -106,20 +119,19 @@ def loadData(myfile):
    fDict[12]=[]
    fDict[13]=[]
    for line in myfile:
-      data=line.split(",")
-      #TODO age+grade as key?
+      data=line.split(",")  #TODO age+grade as key?
       age=data[4]
       gender=data[5]
       grade=getGrade(data[6])
       firstName=data[2]
       lastName=data[3]
-      record=camper(age,gender,grade,firstName,lastName)
+      record=Camper(age,gender,grade,firstName,lastName)
       if(gender=="Male"):
          mDict[grade].append(record)
       else:
          fDict[grade].append(record)
-   return [mDict,fDict]
-
+   return mDict,fDict
+           
 def getTotalCampers(camperDict):
    total=0
    for key in camperDict.keys():
@@ -185,9 +197,9 @@ def rebalMin(camperDict,minGrade,maxGrade):
       loLeft=dictByCount[lo-1]
       loRight=dictByCount[lo+1]
       if loLeft>loRight:
-         camperDict=moveCamper(camperDict,loLeft,False)
+         camperDict=moveCamper(camperDict,lo-1,False)
       elif loRight>loLeft:
-         camperDict=moveCamper(camperDict,loRight,True)
+         camperDict=moveCamper(camperDict,lo+1,True)
    else:
       if lo==minGrade:
          camperDict=moveCamper(camperDict,lo+1,True)
@@ -201,51 +213,46 @@ def rebalMin(camperDict,minGrade,maxGrade):
 filename="/home/echo/RegistrationForm.csv"
 myfile=open(filename)
 myfile.readline() #remove header line
-[mCamperDict,fCamperDict]=loadData(myfile)
+mCamperDict,fCamperDict=loadData(myfile)
 
-#do rebalance
+#do rebalance: guy campers
 totalMaleInit=getTotalCampers(mCamperDict)
 print("Initial male campers:",getCountDict(mCamperDict),"Total:",totalMaleInit)
-
 newMDict=mCamperDict
-for i in range(0,9):
-   newMDict=rebal(newMDict,9,13)
-   """
+for i in range(0,5):
+   #rebalance by peak smoothing
+   newMDict=rebalMax(newMDict,9,13)
+   newMDict=rebalMin(newMDict,9,13)
+   #rebalance by array shifting
    newMDict=rebalEdgesInward(newMDict,9,13)
    newMDict=callRebalance(newMDict,9,True)
    newMDict=callRebalance(newMDict,13,False)
    newMDict=rebalEdgesInward(newMDict,9,13)
-   """
    if debug: print(getCountDict(newMDict))
    if isBalanced(newMDict):
       break
-
 totalMaleFinal=getTotalCampers(newMDict)
 assert(totalMaleInit==totalMaleFinal)
 print("  Final male campers:",getCountDict(newMDict),"Total:",totalMaleFinal)
 
-
-
 print("======================")
 
-
-#do rebalance
+#do rebalance: girl campers
 totalFemaleInit=getTotalCampers(fCamperDict)
 print("Initial Female campers:",getCountDict(fCamperDict),"Total:",totalFemaleInit)
-
 newFDict=fCamperDict
 for i in range(0,10):
+   #rebalance by peak smoothing
    newFDict=rebalMax(newFDict,9,13)
-   """
+   newFDict=rebalMin(newFDict,9,13)
+   #rebalance by array shifting
    newFDict=rebalEdgesInward(newFDict,9,13)
    newFDict=callRebalance(newFDict,9,True)
    newFDict=callRebalance(newFDict,13,False)
    newFDict=rebalEdgesInward(newFDict,9,13)
-   """
    if debug: print(getCountDict(newFDict))
    if isBalanced(newFDict):
       break
-
 totalFemaleFinal=getTotalCampers(newFDict)
 assert(totalFemaleInit==totalFemaleFinal)
 print("  Final Female campers:",getCountDict(newFDict),"Total:",totalFemaleFinal)
