@@ -210,7 +210,7 @@ def rebalMin(camperDict,minGrade,maxGrade):
 
 
 #filename="/storage/emulated/0/Download/RegistrationForm.csv"
-filename="/home/echo/RegistrationForm.csv"
+filename="data.csv"
 myfile=open(filename)
 myfile.readline() #remove header line
 mCamperDict,fCamperDict=loadData(myfile)
