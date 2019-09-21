@@ -160,6 +160,42 @@ def detectRebalWalls(camperDict):
          highest=value
       if value<lowest:
          lowest=value
+         
+def rebalMax(camperDict,minGrade,maxGrade):
+   dictByCount=getCountDict(camperDict)
+   
+   hi=max(dictByCount, key=dictByCount.get)
+   if hi!=minGrade and  hi!=maxGrade:
+      hiLeft=dictByCount[hi-1]
+      hiRight=dictByCount[hi+1]
+      if hiLeft>hiRight:
+         camperDict=moveCamper(camperDict,hi,True)
+      elif hiRight>hiLeft:
+         camperDict=moveCamper(camperDict,hi,False)
+   else:
+      camperDict=moveCamper(camperDict,hi,hi==maxGrade)
+      
+   return camperDict
+
+def rebalMin(camperDict,minGrade,maxGrade):
+   dictByCount=getCountDict(camperDict)
+   
+   lo=min(dictByCount, key=dictByCount.get)
+   if lo!=minGrade and lo!=maxGrade:
+      loLeft=dictByCount[lo-1]
+      loRight=dictByCount[lo+1]
+      if loLeft>loRight:
+         camperDict=moveCamper(camperDict,loLeft,False)
+      elif loRight>loLeft:
+         camperDict=moveCamper(camperDict,loRight,True)
+   else:
+      if lo==minGrade:
+         camperDict=moveCamper(camperDict,lo+1,True)
+      elif lo==maxGrade:
+         camperDict=moveCamper(camperDict,lo-1,False)
+      
+   return camperDict
+
 
 #filename="/storage/emulated/0/Download/RegistrationForm.csv"
 filename="/home/echo/RegistrationForm.csv"
@@ -173,10 +209,13 @@ print("Initial male campers:",getCountDict(mCamperDict),"Total:",totalMaleInit)
 
 newMDict=mCamperDict
 for i in range(0,9):
+   newMDict=rebal(newMDict,9,13)
+   """
    newMDict=rebalEdgesInward(newMDict,9,13)
    newMDict=callRebalance(newMDict,9,True)
    newMDict=callRebalance(newMDict,13,False)
    newMDict=rebalEdgesInward(newMDict,9,13)
+   """
    if debug: print(getCountDict(newMDict))
    if isBalanced(newMDict):
       break
@@ -196,10 +235,13 @@ print("Initial Female campers:",getCountDict(fCamperDict),"Total:",totalFemaleIn
 
 newFDict=fCamperDict
 for i in range(0,10):
+   newFDict=rebalMax(newFDict,9,13)
+   """
    newFDict=rebalEdgesInward(newFDict,9,13)
    newFDict=callRebalance(newFDict,9,True)
    newFDict=callRebalance(newFDict,13,False)
    newFDict=rebalEdgesInward(newFDict,9,13)
+   """
    if debug: print(getCountDict(newFDict))
    if isBalanced(newFDict):
       break
